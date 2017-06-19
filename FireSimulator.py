@@ -22,7 +22,7 @@ class FireSimulator(object):
       2 - burnt tree
 
     Inputs:
-    - grid_size: size of forest, assumes square grid
+    - grid_size: size of forest, assumes square grid (minimum size: 4)
     - rng: random number generator seed to use for deterministic sampling
     - fire_init: list of tuples of (x,y) coordinates describing 
                  positions of initial fires
@@ -108,7 +108,7 @@ class FireSimulator(object):
       x = math.ceil(grid_size/2)
       deltas = [k for k in range(-1,3)]
       neighbors = itertools.product(deltas,deltas)
-      #neighbors = [(0,0),(1,0),(0,1),(1,1),(2,0),(2,1),(2,2),(0,2),(1,2),(-1,0),(-1,-1),(-1,1),(-1,2),(0,-1),(1,-1),(2,-1)]
+
       for (dx,dy) in neighbors:
         xn = x + dx
         yn = x + dy
@@ -197,4 +197,3 @@ def row_to_y(grid_size,row):
 
 def y_to_row(grid_size,y):
   return grid_size-y
-
