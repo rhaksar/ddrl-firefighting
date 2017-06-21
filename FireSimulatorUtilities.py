@@ -17,7 +17,7 @@ def CreateImageBW(state, position, dim=8):
            if necessary
   - image_state: numpy array of size (dim,dim) representing
            the equivalent state of the image
-  - all_hlthy: boolean, True if all trees in image are healthy
+  - isfire: boolean, True if there are fires in image
   """
   
   grid_size = state.shape[0]
@@ -30,7 +30,7 @@ def CreateImageBW(state, position, dim=8):
   c = x_to_col(pos_rnd[0])
   r = y_to_row(grid_size,pos_rnd[1])
   half = dim//2
-  all_hlthy = True
+  isfire = True
 
   for ri,dr in enumerate(np.arange(-half,half,1)):
     for ci,dc in enumerate(np.arange(-half,half,1)):
@@ -40,13 +40,12 @@ def CreateImageBW(state, position, dim=8):
         if state[rn,cn] == 1:
           image[ri,ci] = 128
           image_state[ri,ci] = 1
-          all_hlthy = False 
+          isfire = True 
         elif state[rn,cn] == 2:
           image[ri,ci] = 255
           image_state[ri,ci] = 2
-          all_hlthy = False 
 
-  return image, image_state, all_hlthy
+  return image, image_state, isfire
 
 def CreateImage(state, position, dim=8):
   """
@@ -64,7 +63,7 @@ def CreateImage(state, position, dim=8):
            if necessary
   - image_state: numpy array of size (dim,dim) representing
            the equivalent state of the image
-  - all_hlthy: boolean, True if all trees in image are healthy
+  - isfire: boolean, True if there are fires in image
   """
 
   grid_size = state.shape[0]
@@ -78,7 +77,7 @@ def CreateImage(state, position, dim=8):
   c = x_to_col(pos_rnd[0])
   r = y_to_row(grid_size,pos_rnd[1])
   half = dim//2
-  all_hlthy = True
+  isfire = False
 
   for ri,dr in enumerate(np.arange(-half,half,1)):
     for ci,dc in enumerate(np.arange(-half,half,1)):
@@ -90,16 +89,27 @@ def CreateImage(state, position, dim=8):
         if state[rn,cn] == 1:
           image[:,ri,ci] = np.array([128,0,0])
           image_state[ri,ci] = 1
-          all_hlthy = False
+          isfire = True
         elif state[rn,cn] == 2:
           image[:,ri,ci] = np.zeros((3))
           image_state[ri,ci] = 2
-          all_hlthy = False
 
-  return image, all_hlthy
+  return image, image_state, isfire
 
 def FindGridIntersections(state, waypoints):
-  pass
+  """
+  """
+
+  control = []
+  grid_size = state.shape[0]
+  for (x,y) in waypoints:
+    c = x_to_col(x)
+    r = y_to_row(grid_size,y)
+    if r>=0 and r<grid_size and c>=0 and c<grid_size:
+      if state[r,c] == 1 and (x,y) not in control:
+        control.append((x,y))
+
+  return control
 
 def FindLineIntersections(state, waypoints):
   """
@@ -150,3 +160,37 @@ def FindLineIntersections(state, waypoints):
             control.append((tree_x,tree_y))
               
   return control
+
+def actions_to_trajectory(position, actions):
+  """
+  convention:
+  0 - stop
+  1 - upper left, 2 - up, 3 - upper right
+  4 - left, 5 - right
+  6 - lower left, 7 - down, 8 -lower right
+  """
+
+  traj = []
+  x,y = position
+  trajectory.append((x,y))
+  for a in actions:
+    if a == 0:
+      trajectory.append((x,y))
+    elif a == 1:
+      trajectory.append((x-1,y+1))
+    elif a == 2:
+      trajectory.append((x,y+1))
+    elif a == 3:
+      trajectory.append((x+1,y+1))
+    elif a == 4:
+      trajectory.append((x-1,y))
+    elif a == 5:
+      trajectory.append((x+1,y))
+    elif a == 6:
+      trajectory.append((x-1,y-1))
+    elif a == 7:
+      trajectory.append((x,y-1))
+    elif a == 8:
+      trajectory.append((x+1,y-1))
+
+  return trajectory
