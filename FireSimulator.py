@@ -88,7 +88,7 @@ class FireSimulator(object):
       return False
     return True
 
-  def step(self, action, dbeta):
+  def step(self, action, dbeta=0):
     """
     Function to update the state of the forest fire
 
