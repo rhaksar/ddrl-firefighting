@@ -26,11 +26,11 @@ def CreateImageBW(state, position, dim=8):
   image_state = np.zeros((dim,dim)).astype(np.uint8)
 
   #pos_round = int(np.rint(position))
-  pos_rnd = position.astype(np.int8)
+  pos_rnd = position.astype(np.int32)
   c = x_to_col(pos_rnd[0])
   r = y_to_row(grid_size,pos_rnd[1])
   half = dim//2
-  isfire = True
+  isfire = False
 
   for ri,dr in enumerate(np.arange(-half,half,1)):
     for ci,dc in enumerate(np.arange(-half,half,1)):
@@ -42,7 +42,7 @@ def CreateImageBW(state, position, dim=8):
           image_state[ri,ci] = 1
           isfire = True 
         elif state[rn,cn] == 2:
-          image[ri,ci] = 255
+          image[ri,ci] = 0
           image_state[ri,ci] = 2
 
   return image, image_state, isfire
@@ -73,7 +73,7 @@ def CreateImage(state, position, dim=8):
   image_state = np.zeros((dim,dim)).astype(np.uint8)
 
   #pos_round = int(np.rint(position))
-  pos_rnd = position.astype(np.int8)
+  pos_rnd = position.astype(np.int32)
   c = x_to_col(pos_rnd[0])
   r = y_to_row(grid_size,pos_rnd[1])
   half = dim//2
@@ -170,7 +170,7 @@ def actions_to_trajectory(position, actions):
   6 - lower left, 7 - down, 8 -lower right
   """
 
-  traj = []
+  trajectory = []
   x,y = position
   trajectory.append((x,y))
   for a in actions:
