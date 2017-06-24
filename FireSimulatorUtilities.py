@@ -174,6 +174,7 @@ def actions_to_trajectory(position, actions):
   x,y = position
   trajectory.append((x,y))
   for a in actions:
+    x,y = trajectory[-1]
     if a == 0:
       trajectory.append((x,y))
     elif a == 1:
