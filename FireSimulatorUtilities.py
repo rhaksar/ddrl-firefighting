@@ -17,7 +17,7 @@ def CreateImageBW(state, position, dim=8):
            if necessary
   - image_state: numpy array of size (dim,dim) representing
            the equivalent state of the image
-  - isfire: boolean, True if there are fires in image
+  - isfire: boolean, True if there are fires/burnt trees in image
   """
   
   grid_size = state.shape[0]
@@ -44,6 +44,7 @@ def CreateImageBW(state, position, dim=8):
         elif state[rn,cn] == 2:
           image[ri,ci] = 0
           image_state[ri,ci] = 2
+          isfire = True
 
   return image, image_state, isfire
 
@@ -63,7 +64,7 @@ def CreateImage(state, position, dim=8):
            if necessary
   - image_state: numpy array of size (dim,dim) representing
            the equivalent state of the image
-  - isfire: boolean, True if there are fires in image
+  - isfire: boolean, True if there are fires/burnt trees in image
   """
 
   grid_size = state.shape[0]
@@ -93,6 +94,7 @@ def CreateImage(state, position, dim=8):
         elif state[rn,cn] == 2:
           image[:,ri,ci] = np.zeros((3))
           image_state[ri,ci] = 2
+          isfire = True
 
   return image, image_state, isfire
 
