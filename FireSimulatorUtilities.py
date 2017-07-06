@@ -17,12 +17,13 @@ def CreateImageBW(state, position, dim=8):
            if necessary
   - image_state: numpy array of size (dim,dim) representing
            the equivalent state of the image
-  - isfire: boolean, True if there are fires/burnt trees in image
+  - hasfire: boolean, True if there are fires/burnt trees in image
   """
   
   grid_size = state.shape[0]
 
-  image = 255*np.ones((dim,dim)).astype(np.uint8)
+  #image = np.ones((dim,dim)).astype(np.uint8) #*255
+  image = np.zeros((dim,dim)).astype(np.uint8)
   image_state = np.zeros((dim,dim)).astype(np.uint8)
 
   #pos_round = int(np.rint(position))
@@ -30,7 +31,7 @@ def CreateImageBW(state, position, dim=8):
   c = x_to_col(pos_rnd[0])
   r = y_to_row(grid_size,pos_rnd[1])
   half = dim//2
-  isfire = False
+  hasfire = False
 
   for ri,dr in enumerate(np.arange(-half,half,1)):
     for ci,dc in enumerate(np.arange(-half,half,1)):
@@ -38,15 +39,15 @@ def CreateImageBW(state, position, dim=8):
       cn = c + dc
       if rn>=0 and rn<grid_size and cn>=0 and cn<grid_size:
         if state[rn,cn] == 1:
-          image[ri,ci] = 128
+          image[ri,ci] = 1 #0.5 #128
           image_state[ri,ci] = 1
-          isfire = True 
+          hasfire = True 
         elif state[rn,cn] == 2:
-          image[ri,ci] = 0
+          image[ri,ci] = 2 #0
           image_state[ri,ci] = 2
-          isfire = True
+          hasfire = True
 
-  return image, image_state, isfire
+  return image, image_state, hasfire
 
 def CreateImage(state, position, dim=8):
   """
