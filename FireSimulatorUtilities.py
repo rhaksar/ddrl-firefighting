@@ -167,9 +167,8 @@ def FindLineIntersections(state, waypoints):
 def actions_to_trajectory(position, actions):
   """
   convention:
-  0 - stop
-  1 - upper left, 2 - up, 3 - upper right
-  4 - left, 5 - right
+  1 - upper left, 2 - up,   3 - upper right
+  4 - left,       0 - stop, 5 - right
   6 - lower left, 7 - down, 8 -lower right
   """
 
