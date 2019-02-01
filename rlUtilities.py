@@ -44,7 +44,7 @@ def actions2trajectory(position, actions):
     - actions: list of integers (see convention) describing movement actions
 
     Returns:
-    - trajectory: list of (x, y) positions created by taking actions
+    - trajectory: list of (x, y) positions created by taking actions, where the
                   first element is the input position
     """
 
@@ -91,7 +91,7 @@ def move_toward_center(agent):
     distances = []
     for idx, a in enumerate([2, 5, 7, 4, 1, 3, 8, 6]):
         new_position = actions2trajectory(agent.position, [a])[1]
-        incentive = -(8 - idx) * 0.1  # bias choice towards certain order of agent actions
+        incentive = -(8-idx)*0.1  # bias choice towards certain order of agent actions
         d = np.linalg.norm(agent.fire_center - np.asarray(new_position), 1) + incentive
         distances.append((d, a))
 
@@ -99,7 +99,7 @@ def move_toward_center(agent):
     return action
 
 
-def reward(agent):
+def reward(forest_state, agent):
     """
     agent reward function.
     """
@@ -110,16 +110,20 @@ def reward(agent):
     x2, y2 = agent.next_position
 
     # determine image cell corresponding to new position
-    r = -y2 + y1 + agent.image_dims[1]//2
-    c = x2 - x1 + agent.image_dims[0]//2
+    r_image = -y2 + y1 + agent.image_dims[1]//2
+    c_image = x2 - x1 + agent.image_dims[0]//2
+
+    r_forest, c_forest = xy2rc(forest_state.shape[1], agent.next_position)
 
     # if agent moved to a tree on fire, determine how many healthy neighbors it has
     # agent is reward for treating fires with more healthy neighbors
-    if agent.image[r, c] == agent.on_fire:
+    if agent.image[r_image, c_image] == agent.on_fire:
         healthy_neighbors = 0
         for (dr, dc) in agent.fire_neighbors:
-            rn, cn = r + dr, c + dc
-            if agent.image[rn, cn] == agent.healthy:
+            rn, cn = r_forest + dr, c_forest + dc
+            if rn < 0 or rn >= forest_state.shape[1] or cn < 0 or cn >= forest_state.shape[0]:
+                healthy_neighbors += 1
+            elif forest_state[rn, cn] == agent.healthy:
                 healthy_neighbors += 1
 
         if healthy_neighbors > 0:
@@ -129,11 +133,13 @@ def reward(agent):
 
     # if the agent moved to a healthy tree, reward the move if it there are neighboring trees
     # that are either on fire or burnt
-    elif agent.image[r, c] == agent.healthy:
+    elif agent.image[r_image, c_image] == agent.healthy:
         non_healthy_numbers = 0
         for (dr, dc) in agent.move_deltas:
-            rn, cn = r + dr, c + dc
-            if agent.image[rn, cn] in [agent.on_fire, agent.burnt]:
+            rn, cn = r_forest + dr, c_forest + dc
+            if rn < 0 or rn >= forest_state.shape[1] or cn < 0 or cn >= forest_state.shape[0]:
+                continue
+            elif forest_state[rn, cn] in [agent.on_fire, agent.burnt]:
                 non_healthy_numbers += 1
 
         if non_healthy_numbers > 0:
@@ -154,12 +160,12 @@ def reward(agent):
     move_vector = agent.next_position - agent.position
     norm = np.linalg.norm(move_vector, 2)
     if norm != 0:
-        move_vector /= norm
+        move_vector = move_vector / norm
 
     center_vector = agent.position - agent.fire_center
     norm = np.linalg.norm(center_vector, 2)
     if norm != 0:
-        center_vector /= norm
+        center_vector = center_vector / norm
 
     rotation_score = -1*np.cross(center_vector, move_vector)
     if rotation_score >= 0:
@@ -183,7 +189,7 @@ def heuristic(agent):
         for a in range(1, 9):
             new_position = actions2trajectory(agent.position, [a])[1]
             move_vector = agent.position - np.asarray(new_position)
-            move_vector /= np.linalg.norm(move_vector, 2)
+            move_vector = move_vector / np.linalg.norm(move_vector, 2)
             distances.append((np.cross(fire_center_vector, move_vector), new_position, a))
 
         _, circular_position, action = min(distances, key=lambda t: t[0])
@@ -234,7 +240,7 @@ def heuristic(agent):
 
         if not move_left:
             for a in left_action:
-                new_position = actions2trajectory(agents.position, [a])[1]
+                new_position = actions2trajectory(agent.position, [a])[1]
                 ro = -new_position[1] + agent.position[1] + agent.image_dims[0] // 2
                 co = new_position[0] - agent.position[0] + agent.image_dims[1] // 2
                 if agent.image[ro, co] == agent.burnt:
