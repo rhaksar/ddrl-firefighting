@@ -63,6 +63,9 @@ class Config(object):
             # loss function
             self.loss_fn = nn.MSELoss(reduction='elementwise_mean')
 
+        elif config_type == 'test':
+            self.base_station = np.array([5, 5])
+
 
 class UAV(object):
     healthy = 0
@@ -80,6 +83,8 @@ class UAV(object):
 
         self.position = self.initial_position
         self.next_position = None
+
+        self.capacity = None
 
         self.image = None
         self.reached_fire = False
@@ -197,7 +202,7 @@ class MADQN(object):
         filename = 'madqn-' + time.strftime('%d-%b-%Y-%H%M') + '.pth.tar'
         torch.save(checkpoint, filename)
 
-    def train(self, num_episodes):
+    def train(self, num_episodes=1):
         print('[MADQN] started at %s' % (time.strftime('%d-%b-%Y %H:%M')))
         tic = time.clock()
 
@@ -360,8 +365,6 @@ class MADQN(object):
 
     def test(self, number_agents=10, capacity=None, method='network', rng=None):
 
-        tic = time.clock()
-
         sim = LatticeForest(self.config.forest_dimension)
         if rng is not None:
             np.random.seed(rng)
@@ -373,14 +376,16 @@ class MADQN(object):
             agent.position = np.random.choice(self.config.start, 2) + np.random.choice(self.config.perturb, 2)
             agent.initial_position = agent.position
 
+            if capacity is not None:
+                agent.capacity = capacity
+
         sim_updates = 1
         sim_control = defaultdict(lambda: (0.0, 0.0))
 
-        # simulator_states = []
-        # simulator_states.append(sim.dense_state())
+        forest_state = sim.dense_state()
+        sim_states = [forest_state]
 
         while not sim.end:
-            forest_state = sim.dense_state()
 
             # determine action for each agent
             for agent in team.values():
@@ -393,13 +398,13 @@ class MADQN(object):
 
                 else:
                     # use either network or heuristic
-                    # if method == 'network':
-                    #    q_features = Variable(torch.from_numpy(agent.features)).type(self.config.dtype)
-                    #    q_values = self.model(q_features.unsqueeze(0))[0].data.cpu().numpy()
-                    #    action = np.argmax(q_values)
-                    #
-                    # elif method == 'heuristic':
-                    action = heuristic(agent)
+                    if method == 'network':
+                        q_features = Variable(torch.from_numpy(agent.features)).type(self.config.dtype)
+                        q_values = self.model(q_features.unsqueeze(0))[0].data.cpu().numpy()
+                        action = np.argmax(q_values)
+
+                    elif method == 'heuristic':
+                        action = heuristic(agent)
 
                 # save action
                 agent.actions.append(action)
@@ -408,21 +413,28 @@ class MADQN(object):
             # actually change agent position
             for agent in team.values():
                 agent.update_position()
-                tree_rc = xy2rc(sim.dims[0], agent.position)
-                if sim.group[tree_rc].is_on_fire(sim.group[tree_rc].state):
-                    sim_control[tree_rc] = (0.0, self.config.delta_beta)
+
+                # check if agent treated a tree on fire
+                position_rc = xy2rc(sim.dims[0], agent.position)
+                if 0 <= position_rc[0] < sim.dims[0] and 0 <= position_rc[1] < sim.dims[1]:
+                    if sim.group[position_rc].is_on_fire(sim.group[position_rc].state):
+                        sim_control[position_rc] = (0.0, self.config.delta_beta)
+
+                        if capacity is not None:
+                            agent.capacity -= 1
+
+                if capacity is not None and agent.capacity == 0:
+                    agent.reached_fire = False
+                    agent.next_position = None
+                    agent.position = self.config.base_station
 
             # periodically update simulator
             if sim_updates % self.config.update_sim_every == 0:
                 sim.update(sim_control)
                 sim_control = defaultdict(lambda: (0.0, 0.0))
+                forest_state = sim.dense_state()
 
             sim_updates += 1
+            sim_states.append(forest_state)
 
-        print('[MADQN] remaining trees: %0.4f' % (sim.stats[0]/np.sum(sim.stats)))
-
-        toc = time.clock()
-        dt = toc - tic
-        print('[MADQN] %0.2fs = %0.2fm = %0.2fh elapsed' % (dt, dt / 60, dt / 3600))
-
-        return
+        return sim.stats, sim_states, team
