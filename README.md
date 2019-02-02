@@ -2,6 +2,9 @@
 
 A repository to support the paper [Distributed Deep Reinforcement Learning for Fighting Forest Fires with a Network of Aerial Robots](https://msl.stanford.edu/sites/g/files/sbiybj8446/f/haksar_iros2018_0.pdf).
 
+Video:  
+[![click to play](https://img.youtube.com/vi/bVWf2fJ2WRQ/0.jpg)](https://www.youtube.com/watch?v=bVWf2fJ2WRQ)
+
 Paper citation:
 ```
 @InProceedings{8593539, 
@@ -17,7 +20,7 @@ Paper citation:
 
 ### Requirements
 - Developed with Python 3.5
-- Requires [`pytorch`](https://pytorch.org/) and `numpy`
+- Requires `numpy` and [`pytorch`](https://pytorch.org/)
 - Requires the [simulators](https://github.com/rhaksar/simulators) repository: clone the repository into the root level of this repository
 
 ### Files
