@@ -68,6 +68,9 @@ class Config(object):
 
 
 class UAV(object):
+    """
+    Autonomous unmanned aerial vehicle model.
+    """
     healthy = 0
     on_fire = 1
     burnt = 2
@@ -154,7 +157,9 @@ class Policy(nn.Module):
 
 
 class MADQN(object):
-
+    """
+    Multi-agent Deep Q-network.
+    """
     def __init__(self, mode='train', filename=None):
         self.mode = mode
         self.config = Config(config_type=self.mode)
@@ -203,6 +208,9 @@ class MADQN(object):
         torch.save(checkpoint, filename)
 
     def train(self, num_episodes=1):
+        """
+        Method to train and output a network representing the control policy.
+        """
         print('[MADQN] started at %s' % (time.strftime('%d-%b-%Y %H:%M')))
         tic = time.clock()
 
@@ -255,7 +263,7 @@ class MADQN(object):
                     agent.next_position = np.asarray(actions2trajectory(agent.position, [action])[1])
                     agent.rewards.append(reward(forest_state, agent))
 
-                # actually change agent position
+                # update agent position
                 for agent in team.values():
                     agent.update_position()
 
@@ -363,78 +371,91 @@ class MADQN(object):
         print('[MADQN] completed at %s' % (time.strftime('%d-%b %H:%M')))
         print('[MADQN] %0.2fs = %0.2fm = %0.2fh elapsed' % (dt, dt/60, dt/3600))
 
-    def test(self, number_agents=10, capacity=None, method='network', rng=None):
+    def test(self, num_episodes=1, number_agents=10, capacity=None, method='network'):
+        """
+        Method to test a trained network or the hand-tuned heuristic.
+        """
 
         sim = LatticeForest(self.config.forest_dimension)
-        if rng is not None:
-            np.random.seed(rng)
-            sim.rng = rng
         team = {i: UAV(numeric_id=i, fire_center=self.config.fire_center) for i in range(number_agents)}
 
-        # deploy agents randomly
-        for agent in team.values():
-            agent.position = np.random.choice(self.config.start, 2) + np.random.choice(self.config.perturb, 2)
-            agent.initial_position = agent.position
+        results = {}
 
-            if capacity is not None:
-                agent.capacity = capacity
+        # run many simulations
+        for episode in range(num_episodes):
+            np.random.seed(episode)
+            sim.rng = episode
+            sim.reset()
 
-        sim_updates = 1
-        sim_control = defaultdict(lambda: (0.0, 0.0))
-
-        forest_state = sim.dense_state()
-        sim_states = [forest_state]
-
-        while not sim.end:
-
-            # determine action for each agent
+            # deploy agents randomly
             for agent in team.values():
-                agent.features = agent.update_features(forest_state, team)
+                agent.reset()
+                agent.position = np.random.choice(self.config.start, 2) + np.random.choice(self.config.perturb, 2)
+                agent.initial_position = agent.position
 
-                action = None
-                if not agent.reached_fire:
-                    # move to fire center
-                    action = move_toward_center(agent)
+                if capacity is not None:
+                    agent.capacity = capacity
 
-                else:
-                    # use either network or heuristic
-                    if method == 'network':
-                        q_features = Variable(torch.from_numpy(agent.features)).type(self.config.dtype)
-                        q_values = self.model(q_features.unsqueeze(0))[0].data.cpu().numpy()
-                        action = np.argmax(q_values)
+            sim_updates = 1
+            sim_control = defaultdict(lambda: (0.0, 0.0))
 
-                    elif method == 'heuristic':
-                        action = heuristic(agent)
+            forest_state = sim.dense_state()
+            sim_states = [forest_state]
 
-                # save action
-                agent.actions.append(action)
-                agent.next_position = np.asarray(actions2trajectory(agent.position, [action])[1])
+            # run each simulation to completion
+            while not sim.end:
 
-            # actually change agent position
-            for agent in team.values():
-                agent.update_position()
+                # determine action for each agent
+                for agent in team.values():
+                    agent.features = agent.update_features(forest_state, team)
 
-                # check if agent treated a tree on fire
-                position_rc = xy2rc(sim.dims[0], agent.position)
-                if 0 <= position_rc[0] < sim.dims[0] and 0 <= position_rc[1] < sim.dims[1]:
-                    if sim.group[position_rc].is_on_fire(sim.group[position_rc].state):
-                        sim_control[position_rc] = (0.0, self.config.delta_beta)
+                    action = None
+                    if not agent.reached_fire:
+                        # move to fire center
+                        action = move_toward_center(agent)
 
-                        if capacity is not None:
-                            agent.capacity -= 1
+                    else:
+                        # use either network or heuristic
+                        if method == 'network':
+                            q_features = Variable(torch.from_numpy(agent.features)).type(self.config.dtype)
+                            q_values = self.model(q_features.unsqueeze(0))[0].data.cpu().numpy()
+                            action = np.argmax(q_values)
 
-                if capacity is not None and agent.capacity == 0:
-                    agent.reached_fire = False
-                    agent.next_position = None
-                    agent.position = self.config.base_station
+                        elif method == 'heuristic':
+                            action = heuristic(agent)
 
-            # periodically update simulator
-            if sim_updates % self.config.update_sim_every == 0:
-                sim.update(sim_control)
-                sim_control = defaultdict(lambda: (0.0, 0.0))
-                forest_state = sim.dense_state()
+                    # save action
+                    agent.actions.append(action)
+                    agent.next_position = np.asarray(actions2trajectory(agent.position, [action])[1])
 
-            sim_updates += 1
-            sim_states.append(forest_state)
+                # update agent position
+                for agent in team.values():
+                    agent.update_position()
 
-        return sim.stats, sim_states, team
+                    # check if agent treated a tree on fire
+                    position_rc = xy2rc(sim.dims[0], agent.position)
+                    if 0 <= position_rc[0] < sim.dims[0] and 0 <= position_rc[1] < sim.dims[1]:
+                        if sim.group[position_rc].is_on_fire(sim.group[position_rc].state):
+                            sim_control[position_rc] = (0.0, self.config.delta_beta)
+
+                            if capacity is not None:
+                                agent.capacity -= 1
+
+                    # re-deploy agent if it runs out of retardant
+                    if capacity is not None and agent.capacity == 0:
+                        agent.reached_fire = False
+                        agent.next_position = None
+                        agent.position = self.config.base_station
+
+                # periodically update simulator
+                if sim_updates % self.config.update_sim_every == 0:
+                    sim.update(sim_control)
+                    sim_control = defaultdict(lambda: (0.0, 0.0))
+                    forest_state = sim.dense_state()
+
+                sim_updates += 1
+                sim_states.append(forest_state)
+
+            results[episode] = {'stats': sim.stats, 'sim_states': sim_states, 'team': team}
+
+        return results
