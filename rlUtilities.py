@@ -185,18 +185,21 @@ def heuristic(agent):
         # find the action that is closest to simply rotating clockwise about the fire center
         distances = []
         fire_center_vector = agent.position - agent.fire_center
-        fire_center_vector /= np.linalg.norm(fire_center_vector, 2)
+        norm = np.linalg.norm(fire_center_vector, 2)
+        if norm != 0:
+            fire_center_vector = fire_center_vector / norm
+
         for a in range(1, 9):
             new_position = actions2trajectory(agent.position, [a])[1]
-            move_vector = agent.position - np.asarray(new_position)
+            move_vector = np.asarray(new_position) - agent.position
             move_vector = move_vector / np.linalg.norm(move_vector, 2)
             distances.append((np.cross(fire_center_vector, move_vector), new_position, a))
 
         _, circular_position, action = min(distances, key=lambda t: t[0])
 
         # calculate corresponding location in image
-        ri = -circular_position[1] + agent.position[1] + agent.image_dims[0]//2
-        ci = circular_position[0] - agent.position[0] + agent.image_dims[1]//2
+        ri = -circular_position[1] + agent.position[1] + (agent.image_dims[0]-1)//2
+        ci = circular_position[0] - agent.position[0] + (agent.image_dims[1]-1)//2
 
         # determine "left" and "right" actions, relative to the rotation action
         left_action = None
@@ -230,8 +233,8 @@ def heuristic(agent):
         move_left = False
         for a in left_action:
             new_position = actions2trajectory(agent.position, [a])[1]
-            ro = -new_position[1] + agent.position[1] + agent.image_dims[0]//2
-            co = new_position[0] - agent.position[0] + agent.image_dims[1]//2
+            ro = -new_position[1] + agent.position[1] + (agent.image_dims[0]-1)//2
+            co = new_position[0] - agent.position[0] + (agent.image_dims[1]-1)//2
             if agent.image[ro, co] == agent.on_fire:
                 circular_position = new_position
                 action = a
@@ -241,8 +244,8 @@ def heuristic(agent):
         if not move_left:
             for a in left_action:
                 new_position = actions2trajectory(agent.position, [a])[1]
-                ro = -new_position[1] + agent.position[1] + agent.image_dims[0] // 2
-                co = new_position[0] - agent.position[0] + agent.image_dims[1] // 2
+                ro = -new_position[1] + agent.position[1] + (agent.image_dims[0]-1)//2
+                co = new_position[0] - agent.position[0] + (agent.image_dims[1]-1)//2
                 if agent.image[ro, co] == agent.burnt:
                     circular_position = new_position
                     action = a
@@ -255,8 +258,11 @@ def heuristic(agent):
             healthy_neighbors = 0
             for (dr, dc) in agent.move_deltas:
                 rn, cn = ri + dr, ci + dc
-                if 0 <= rn < agent.image_dims[1] and 0 <= cn < agent.image_dims[0] \
-                        and agent.image[rn, cn] == agent.healthy:
+                # assume neighbors out of image are healthy
+                if 0 <= rn < agent.image_dims[1] and 0 <= cn < agent.image_dims[0]:
+                    if agent.image[rn, cn] == agent.healthy:
+                        healthy_neighbors += 1
+                else:
                     healthy_neighbors += 1
 
             if healthy_neighbors >= 6:
