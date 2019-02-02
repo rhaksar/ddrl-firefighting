@@ -28,6 +28,11 @@ class Config(object):
         self.fire_center = np.array([(self.forest_dimension+1)/2, (self.forest_dimension+1)/2])
         self.update_sim_every = 6
 
+        # agent initialization locations
+        self.start = np.arange(self.forest_dimension // 3 // 2, self.forest_dimension, self.forest_dimension // 3)
+        self.perturb = np.arange(-self.forest_dimension // 3 // 2 + 1, self.forest_dimension // 3 // 2 + 1, 1)
+
+        # network input parameters
         self.feature_length = np.prod(self.image_dims) + 2 + 1 + 2
         self.action_length = 1
         self.reward_length = 1
@@ -37,10 +42,6 @@ class Config(object):
 
             # simulation iteration cutoff
             self.sim_iter_limit = 100
-
-            # agent initialization locations
-            self.start = np.arange(self.forest_dimension//3//2, self.forest_dimension, self.forest_dimension//3)
-            self.perturb = np.arange(-self.forest_dimension//3//2 + 1, self.forest_dimension//3//2 + 1, 1)
 
             # replay memory
             self.memory_size = 1000000
@@ -95,6 +96,8 @@ class UAV(object):
     def reset(self):
         self.reached_fire = False
         self.next_position = None
+        self.actions = []
+        self.rewards = []
 
     def update_position(self):
         self.position = self.next_position
@@ -111,6 +114,7 @@ class UAV(object):
         norm = np.linalg.norm(self.rotation_vector, 2)
         if norm != 0:
             self.rotation_vector = self.rotation_vector / norm
+        self.rotation_vector = np.array([self.rotation_vector[1], -self.rotation_vector[0]])
 
         d = [(np.linalg.norm(self.position-agent.position, 2), agent.numeric_id, agent.position)
              for agent in team.values() if agent.numeric_id != self.numeric_id]
@@ -194,6 +198,9 @@ class MADQN(object):
         torch.save(checkpoint, filename)
 
     def train(self, num_episodes):
+        print('[MADQN] started at %s' % (time.strftime('%d-%b-%Y %H:%M')))
+        tic = time.clock()
+
         sim = LatticeForest(self.config.forest_dimension)
         number_agents = 10
         team = {i: UAV(numeric_id=i, fire_center=self.config.fire_center) for i in range(number_agents)}
@@ -208,9 +215,9 @@ class MADQN(object):
 
             # deploy agents randomly
             for agent in team.values():
+                agent.reset()
                 agent.position = np.random.choice(self.config.start, 2) + np.random.choice(self.config.perturb, 2)
                 agent.initial_position = agent.position
-                agent.reset()
 
             sim_updates = 1
             sim_control = defaultdict(lambda: (0.0, 0.0))
@@ -238,25 +245,28 @@ class MADQN(object):
                             q_values = self.model(q_features.unsqueeze(0))[0].data.cpu().numpy()
                             action = np.argmax(q_values)
 
-                    # get reward
+                    # get reward and save action
                     agent.actions.append(action)
                     agent.next_position = np.asarray(actions2trajectory(agent.position, [action])[1])
                     agent.rewards.append(reward(forest_state, agent))
 
-                    # determine treated trees based on agent movement
-                    sim_control[xy2rc(sim.dims[0], agent.next_position)] = (0, self.config.delta_beta)
+                # actually change agent position
+                for agent in team.values():
+                    agent.update_position()
+
+                    # check if agent treated a tree on fire
+                    position_rc = xy2rc(sim.dims[0], agent.position)
+                    if 0 <= position_rc[0] < sim.dims[0] and 0 <= position_rc[1] < sim.dims[1]:
+                        if sim.group[position_rc].is_on_fire(sim.group[position_rc].state):
+                            sim_control[position_rc] = (0.0, self.config.delta_beta)
 
                 # periodically update simulator
                 if sim_updates % self.config.update_sim_every == 0:
                     sim.update(sim_control)
-                    sim_control = defaultdict(lambda: (0, 0))
+                    sim_control = defaultdict(lambda: (0.0, 0.0))
                     forest_state = sim.dense_state()
 
                 sim_updates += 1
-
-                # actually change agent position
-                for agent in team.values():
-                    agent.update_position()
 
                 # do not update network if the simulation terminates early
                 if sim.end:
@@ -343,5 +353,76 @@ class MADQN(object):
         # save results at end of training
         self.save_checkpoint()
 
-    def test(self, capacity=None):
-        pass
+        toc = time.clock()
+        dt = toc - tic
+        print('[MADQN] completed at %s' % (time.strftime('%d-%b %H:%M')))
+        print('[MADQN] %0.2fs = %0.2fm = %0.2fh elapsed' % (dt, dt/60, dt/3600))
+
+    def test(self, number_agents=10, capacity=None, method='network', rng=None):
+
+        tic = time.clock()
+
+        sim = LatticeForest(self.config.forest_dimension)
+        if rng is not None:
+            np.random.seed(rng)
+            sim.rng = rng
+        team = {i: UAV(numeric_id=i, fire_center=self.config.fire_center) for i in range(number_agents)}
+
+        # deploy agents randomly
+        for agent in team.values():
+            agent.position = np.random.choice(self.config.start, 2) + np.random.choice(self.config.perturb, 2)
+            agent.initial_position = agent.position
+
+        sim_updates = 1
+        sim_control = defaultdict(lambda: (0.0, 0.0))
+
+        # simulator_states = []
+        # simulator_states.append(sim.dense_state())
+
+        while not sim.end:
+            forest_state = sim.dense_state()
+
+            # determine action for each agent
+            for agent in team.values():
+                agent.features = agent.update_features(forest_state, team)
+
+                action = None
+                if not agent.reached_fire:
+                    # move to fire center
+                    action = move_toward_center(agent)
+
+                else:
+                    # use either network or heuristic
+                    # if method == 'network':
+                    #    q_features = Variable(torch.from_numpy(agent.features)).type(self.config.dtype)
+                    #    q_values = self.model(q_features.unsqueeze(0))[0].data.cpu().numpy()
+                    #    action = np.argmax(q_values)
+                    #
+                    # elif method == 'heuristic':
+                    action = heuristic(agent)
+
+                # save action
+                agent.actions.append(action)
+                agent.next_position = np.asarray(actions2trajectory(agent.position, [action])[1])
+
+            # actually change agent position
+            for agent in team.values():
+                agent.update_position()
+                tree_rc = xy2rc(sim.dims[0], agent.position)
+                if sim.group[tree_rc].is_on_fire(sim.group[tree_rc].state):
+                    sim_control[tree_rc] = (0.0, self.config.delta_beta)
+
+            # periodically update simulator
+            if sim_updates % self.config.update_sim_every == 0:
+                sim.update(sim_control)
+                sim_control = defaultdict(lambda: (0.0, 0.0))
+
+            sim_updates += 1
+
+        print('[MADQN] remaining trees: %0.4f' % (sim.stats[0]/np.sum(sim.stats)))
+
+        toc = time.clock()
+        dt = toc - tic
+        print('[MADQN] %0.2fs = %0.2fm = %0.2fh elapsed' % (dt, dt / 60, dt / 3600))
+
+        return
