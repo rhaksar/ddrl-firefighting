@@ -7,12 +7,13 @@ if __name__ == '__main__':
     algorithm.train(num_episodes=110)
 
     # test a network or the heuristic
-    # filename = None
-    # algorithm = MADQN(mode='test', filename=filename)
-    # algorithm.test(num_episodes=1, method='network')
+    # load_filename = 
+    # test_method = 'network'
+    # algorithm = MADQN(mode='test', filename=load_filename)
+    # results = algorithm.test(num_episodes=1, method=test_method)
 
     # save the results to file
-    # results_filename = 'results.pkl'
-    # output = open(filename, 'wb')
+    # save_filename = 'results_' + test_method + '.pkl'
+    # output = open(save_filename, 'wb')
     # pickle.dump(results, output)
     # output.close()
