@@ -375,6 +375,9 @@ class MADQN(object):
         """
         Method to test a trained network or the hand-tuned heuristic.
         """
+        print('[MADQN] testing for %d episodes' % num_episodes)
+        print('[MADQN] started at %s' % (time.strftime('%d-%b-%Y %H:%M')))
+        tic = time.clock()
 
         sim = LatticeForest(self.config.forest_dimension)
         team = {i: UAV(numeric_id=i, fire_center=self.config.fire_center) for i in range(num_agents)}
@@ -457,5 +460,11 @@ class MADQN(object):
                 sim_states.append(forest_state)
 
             results[episode] = {'stats': sim.stats, 'sim_states': sim_states, 'team': team}
+            if (episode+1) % 10 == 0:
+                print('[MADQN] completed 10 simulations')
 
+        toc = time.clock()
+        dt = toc - tic
+        print('[MADQN] completed at %s' % (time.strftime('%d-%b %H:%M')))
+        print('[MADQN] %0.2fs = %0.2fm = %0.2fh elapsed' % (dt, dt/60, dt/3600))
         return results
