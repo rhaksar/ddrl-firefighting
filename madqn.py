@@ -61,7 +61,7 @@ class Config(object):
             self.anneal_range = 20000  # 40000
 
             # loss function
-            self.loss_fn = nn.MSELoss(reduction='elementwise_mean')
+            self.loss_fn = nn.MSELoss(reduction='mean')
 
         elif config_type == 'test':
             self.base_station = np.array([5, 5])
@@ -215,8 +215,8 @@ class MADQN(object):
         tic = time.clock()
 
         sim = LatticeForest(self.config.forest_dimension)
-        number_agents = 10
-        team = {i: UAV(numeric_id=i, fire_center=self.config.fire_center) for i in range(number_agents)}
+        num_agents = 10
+        team = {i: UAV(numeric_id=i, fire_center=self.config.fire_center) for i in range(num_agents)}
 
         model_updates = 1
 
@@ -371,13 +371,13 @@ class MADQN(object):
         print('[MADQN] completed at %s' % (time.strftime('%d-%b %H:%M')))
         print('[MADQN] %0.2fs = %0.2fm = %0.2fh elapsed' % (dt, dt/60, dt/3600))
 
-    def test(self, num_episodes=1, number_agents=10, capacity=None, method='network'):
+    def test(self, num_episodes=1, num_agents=10, capacity=None, method='network'):
         """
         Method to test a trained network or the hand-tuned heuristic.
         """
 
         sim = LatticeForest(self.config.forest_dimension)
-        team = {i: UAV(numeric_id=i, fire_center=self.config.fire_center) for i in range(number_agents)}
+        team = {i: UAV(numeric_id=i, fire_center=self.config.fire_center) for i in range(num_agents)}
 
         results = {}
 
