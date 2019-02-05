@@ -375,7 +375,7 @@ class MADQN(object):
         """
         Method to test a trained network or the hand-tuned heuristic.
         """
-        print('[MADQN] testing for %d episodes' % num_episodes)
+        print('[MADQN] testing %s for %d episodes' % (method, num_episodes))
         print('[MADQN] started at %s' % (time.strftime('%d-%b-%Y %H:%M')))
         tic = time.clock()
 
@@ -460,8 +460,8 @@ class MADQN(object):
                 sim_states.append(forest_state)
 
             results[episode] = {'stats': sim.stats, 'sim_states': sim_states, 'team': team}
-            if (episode+1) % 10 == 0:
-                print('[MADQN] completed 10 simulations')
+            if (episode+1) % 100 == 0:
+                print('[MADQN] completed %d simulations' % (episode+1))
 
         toc = time.clock()
         dt = toc - tic
