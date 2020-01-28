@@ -19,11 +19,11 @@ Paper citation:
 ```
 
 ### Requirements
-- Developed with Python 3.5
-- Requires `numpy` and [`pytorch`](https://pytorch.org/)
-- Requires the [simulators](https://github.com/rhaksar/simulators) repository: clone the repository into the root level of this repository
+- Developed with Python 3.6
+- Requires `numpy` and [`pytorch`](https://pytorch.org/) (tested with version 1.4.0)
+- Requires the [simulators](https://github.com/rhaksar/simulators) repository
 
 ### Files
-- `main.py`: Example usage of algorithm: train and test a network with simulations. 
 - `madqn.py`: Implementation of training algorithm, policy architecture, and aerial vehicle model.
+- `main.py`: Example usage of algorithm: train and test a network with simulations. 
 - `rlUtilities.py`: Helper utilities to simplify implementation of the reinforcement learning problem.

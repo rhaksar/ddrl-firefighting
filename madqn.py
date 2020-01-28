@@ -10,10 +10,10 @@ import os
 import sys
 import time
 
-sys.path.append(os.getcwd() + '/simulators')
+sys.path.append(os.path.dirname(os.getcwd()) + '/simulators')
 from fires.LatticeForest import LatticeForest
 
-from rlUtilities import *
+from rlUtilities import latticeforest_image, actions2trajectory, xy2rc, move_toward_center, reward, heuristic
 
 
 class Config(object):
@@ -368,7 +368,7 @@ class MADQN(object):
 
         toc = time.clock()
         dt = toc - tic
-        print('[MADQN] completed at %s' % (time.strftime('%d-%b %H:%M')))
+        print('[MADQN] completed at %s' % (time.strftime('%d-%b-%Y %H:%M')))
         print('[MADQN] %0.2fs = %0.2fm = %0.2fh elapsed' % (dt, dt/60, dt/3600))
 
     def test(self, num_episodes=1, num_agents=10, capacity=None, method='network'):
