@@ -1,6 +1,6 @@
 # ddrl-firefighting
 
-A repository to support the paper [Distributed Deep Reinforcement Learning for Fighting Forest Fires with a Network of Aerial Robots](https://msl.stanford.edu/sites/g/files/sbiybj8446/f/root_0.pdf).
+A repository to support the paper **Distributed Deep Reinforcement Learning for Fighting Forest Fires with a Network of Aerial Robots**.
 
 Video:  
 [![click to play](https://img.youtube.com/vi/bVWf2fJ2WRQ/0.jpg)](https://www.youtube.com/watch?v=bVWf2fJ2WRQ)
