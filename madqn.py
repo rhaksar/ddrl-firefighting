@@ -10,8 +10,7 @@ import os
 import sys
 import time
 
-sys.path.append(os.path.dirname(os.getcwd()) + '/simulators')
-from fires.LatticeForest import LatticeForest
+from simulators.fires.LatticeForest import LatticeForest
 
 from rlUtilities import latticeforest_image, actions2trajectory, xy2rc, move_toward_center, reward, heuristic
 
