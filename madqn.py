@@ -189,8 +189,8 @@ class MADQN(object):
             self.sars = checkpoint['replay']
             self.eps = checkpoint['epsilon']
             self.reward_history = checkpoint['reward_history']
-            self.loss_history = checkpoint['plot_history']
-            self.num_train_episodes = checkpoint[self.num_train_episodes]
+            self.loss_history = checkpoint['loss_history']
+            self.num_train_episodes = checkpoint['num_train_episodes']
 
     def save_checkpoint(self):
         checkpoint = {
